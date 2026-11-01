@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>MUTINY | AI Social Deduction in the Deep</title>
+  <meta name="description" content="A real-time multiplayer social deduction game. One hidden player in your submarine crew is an AI imitating you. Can you find the AI before it fools you?">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div class="scanlines"></div>
+  <div class="radar-bg"></div>
+
+  <!-- Header & HUD -->
+  <header class="game-header">
+    <div class="brand-section" id="btnHomeBrand">
+      <img src="/assets/logo_badge.jpg" alt="Mutiny Tactical Badge" class="brand-logo">
+      <div class="brand-title">MUTINY</div>
+      <span class="brand-badge">DEEP COMMS</span>
+    </div>
+
+    <div class="header-status">
+      <div class="room-tag" id="hudRoomTag" style="display: none;">
+        <span>SUB-ID:</span>
+        <strong id="hudRoomCode">----</strong>
+      </div>
+      <div class="timer-badge normal" id="hudTimer" style="display: none;">
+        <span>⏱️</span>
+        <span id="hudTimerText">00:00</span>
+      </div>
+      <button class="audio-btn" id="btnAudioToggle" title="Toggle Sound FX">
+        🔊
+      </button>
+    </div>
+  </header>
+
+  <!-- Main App Shell -->
+  <main class="app-container">
+
+    <!-- ==============================================
+         1. SCREEN: LANDING & ROOM ENTRY
+         ============================================== -->
+    <section id="panelLanding" class="phase-panel active">
+      <div class="hero-card">
+        <div class="hero-img-wrap">
+          <img src="/assets/hero_banner.jpg" alt="Submarine Command Deck" class="hero-img">
+          <div class="hero-overlay">
+            <div class="hero-tagline">Trmi × LovHack 2026 · Theme: Multiplayer Everything</div>
+            <h1 class="hero-title">ONE OF YOU IS A SYNTHETIC IMPOSTOR.</h1>
+            <p class="hero-desc">Submerged at 5,000 fathoms. 4–8 crew members communicate through encrypted radio. One player is an AI mimicking your speech patterns. Deduce the machine before it fools the crew.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Player Setup -->
+      <div class="action-card" style="margin-bottom: 24px;">
+        <h3><span>👤</span> Tactical Crew Profile</h3>
+        <div class="input-group">
+          <label class="input-label" for="inputNickname">Operative Callsign</label>
+          <input type="text" id="inputNickname" class="cyber-input" placeholder="e.g. Maverick, Vance, Echo..." maxlength="15" value="Captain Vance">
+        </div>
+
+        <div class="input-group">
+          <label class="input-label">Select Crew Avatar</label>
+          <div class="avatar-selection-grid" id="avatarSelector">
+            <div class="avatar-option selected" data-avatar="/assets/avatar_commander.jpg">
+              <img src="/assets/avatar_commander.jpg" alt="Commander Vance">
+              <span class="role-tag">COMMAND</span>
+            </div>
+            <div class="avatar-option" data-avatar="/assets/avatar_nova.jpg">
+              <img src="/assets/avatar_nova.jpg" alt="Specialist Nova">
+              <span class="role-tag">TECH</span>
+            </div>
+            <div class="avatar-option" data-avatar="/assets/avatar_kai.jpg">
+              <img src="/assets/avatar_kai.jpg" alt="Diver Kai">
+              <span class="role-tag">DIVER</span>
+            </div>
+            <div class="avatar-option" data-avatar="/assets/avatar_synth_reveal.jpg">
+              <img src="/assets/avatar_synth_reveal.jpg" alt="Synth Infiltrator">
+              <span class="role-tag">UNKNOWN</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Optional AI Tactical Core Settings (Groq / NVIDIA NIM / Local Fallback) -->
+      <details class="action-card" style="margin-bottom: 24px; cursor: pointer;">
+        <summary style="font-family: var(--font-display); font-size: 1.05rem; color: var(--accent-cyan); display: flex; align-items: center; gap: 8px;">
+          <span>⚡</span> AI Neural Core Settings (Groq / NVIDIA NIM / Cloud LLM)
+          <span style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-dim); margin-left: auto;">[EXPAND OPTIONS]</span>
+        </summary>
+        <div style="margin-top: 14px; display: flex; flex-direction: column; gap: 12px; cursor: default;">
+          <p style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.4;">
+            Mutiny works out-of-the-box with its built-in neural mimicry engine. To power the hidden AI with live cloud LLM intelligence, select your provider and paste your free key (or set it in your <code>.env</code> file):
+          </p>
+          <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 12px;">
+            <div class="input-group">
+              <label class="input-label" for="selectAIProvider">AI Engine</label>
+              <select id="selectAIProvider" class="cyber-input" style="background: var(--bg-surface); color: #fff;">
+                <option value="groq" selected>Groq (Llama 3.3 70B - Recommended)</option>
+                <option value="nvidia">NVIDIA NIM (Llama 3.1 70B)</option>
+                <option value="openai">OpenAI (GPT-4o Mini)</option>
+              </select>
+            </div>
+            <div class="input-group">
+              <label class="input-label" for="inputAIApiKey">API Key (Optional / Saved Locally)</label>
+              <input type="password" id="inputAIApiKey" class="cyber-input" placeholder="gsk_... or nvapi-... (leave blank to use .env or built-in engine)">
+            </div>
+          </div>
+        </div>
+      </details>
+
+      <!-- Action Choice -->
+      <div class="landing-grid">
+        <!-- Create Room -->
+        <div class="action-card">
+          <h3><span>📡</span> Host Mission</h3>
+          <p style="color: var(--text-muted); font-size: 0.9rem;">Initialize a new submarine frequency. Share the 4-letter code with friends or judges.</p>
+          <button id="btnCreateRoom" class="cyber-btn">
+            <span>⚡</span> CREATE SUB ROOM
+          </button>
+        </div>
+
+        <!-- Join Room -->
+        <div class="action-card">
+          <h3><span>📻</span> Join Frequency</h3>
+          <div class="input-group">
+            <label class="input-label" for="inputRoomCode">4-Letter Room Code</label>
+            <input type="text" id="inputRoomCode" class="cyber-input" placeholder="e.g. NEON" maxlength="4" style="text-transform: uppercase;">
+          </div>
+          <button id="btnJoinRoom" class="cyber-btn secondary">
+            <span>🔗</span> JOIN MISSION
+          </button>
+        </div>
+
+        <!-- Solo / Quick Practice Demo Mode -->
+        <div class="action-card" style="border-color: rgba(16, 185, 129, 0.4);">
+          <h3 style="color: var(--accent-emerald);"><span>🤖</span> Instant Solo / Demo Mode</h3>
+          <p style="color: var(--text-muted); font-size: 0.9rem;">Ideal for single-player testing & judge demos. Instantly fills 3 simulated human crewmates + 1 hidden AI without needing other devices!</p>
+          <button id="btnSoloDemo" class="cyber-btn demo-mode">
+            <span>▶️</span> LAUNCH INSTANT DEMO
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==============================================
+         2. SCREEN: LOBBY
+         ============================================== -->
+    <section id="panelLobby" class="phase-panel">
+      <div class="lobby-header">
+        <div class="lobby-code-box">
+          <span style="font-family: var(--font-mono); color: var(--text-muted);">MISSION FREQUENCY:</span>
+          <div class="code-display" id="lobbyRoomCode">----</div>
+          <button class="copy-btn" id="btnCopyCode" title="Copy code">COPY CODE</button>
+          <button class="copy-btn" id="btnCopyLink" title="Copy join link">COPY LINK</button>
+        </div>
+        <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
+          <div id="lobbyAutoTimerBox" style="font-family: var(--font-mono); background: rgba(245, 158, 11, 0.12); border: 1px solid var(--accent-amber); color: var(--accent-amber); padding: 6px 14px; border-radius: var(--radius-sm); font-size: 0.85rem; display: flex; align-items: center; gap: 6px;">
+            <span>⏱️ AUTO-DIVE:</span>
+            <strong id="lobbyAutoTimer" style="font-family: var(--font-display); font-size: 1.15rem; color: #fff;">30s</strong>
+          </div>
+          <div style="font-family: var(--font-mono); color: var(--accent-cyan); font-size: 0.9rem;">
+            CREW READY: <span id="lobbyPlayerCount">1</span> / 8
+          </div>
+        </div>
+      </div>
+
+      <div class="crew-roster" id="lobbyRosterList">
+        <!-- Roster Cards Injected Dynamically -->
+      </div>
+
+      <div class="lobby-controls">
+        <div id="lobbyHostControls" style="display: none;">
+          <button id="btnStartGame" class="cyber-btn">
+            <span>🚀</span> DIVE & COMMENCE MUTINY
+          </button>
+        </div>
+        <div id="lobbyGuestStatus" style="font-family: var(--font-mono); color: var(--text-muted); align-self: center;">
+          Awaiting Mission Commander to start the dive...
+        </div>
+      </div>
+    </section>
+
+    <!-- ==============================================
+         3. SCREEN: WARM-UP (STYLE SAMPLES)
+         ============================================== -->
+    <section id="panelWarmup" class="phase-panel">
+      <div class="warmup-card">
+        <div class="warmup-header">
+          <h2>CREW CALIBRATION</h2>
+          <p>Answer these 3 rapid questions. Your exact phrasing and tone are being monitored.</p>
+        </div>
+
+        <form id="warmupForm">
+          <div class="prompt-block">
+            <div class="prompt-question">
+              <span class="prompt-num">01.</span>
+              <span id="warmupPrompt1">What is a weird food combo you secretly swear by?</span>
+            </div>
+            <textarea id="ans1" class="prompt-textarea" placeholder="Type your honest answer..." required></textarea>
+          </div>
+
+          <div class="prompt-block">
+            <div class="prompt-question">
+              <span class="prompt-num">02.</span>
+              <span id="warmupPrompt2">You're stranded on an oceanic outpost with 1 item. What did you bring and why?</span>
+            </div>
+            <textarea id="ans2" class="prompt-textarea" placeholder="Type your honest answer..." required></textarea>
+          </div>
+
+          <div class="prompt-block">
+            <div class="prompt-question">
+              <span class="prompt-num">03.</span>
+              <span id="warmupPrompt3">State your crew motto in 5 words or fewer.</span>
+            </div>
+            <textarea id="ans3" class="prompt-textarea" placeholder="5 words or fewer..." required></textarea>
+          </div>
+
+          <button type="submit" id="btnSubmitWarmup" class="cyber-btn" style="width: 100%;">
+            <span>🔒</span> TRANSMIT SECURE CALIBRATION
+          </button>
+        </form>
+      </div>
+    </section>
+
+    <!-- ==============================================
+         4. SCREEN: DISCUSSION & CHAT
+         ============================================== -->
+    <section id="panelDiscussion" class="phase-panel">
+      <div class="discussion-layout">
+        <!-- Sidebar Suspects -->
+        <aside class="comms-sidebar">
+          <div class="sidebar-title">📻 Frequency Participants</div>
+          <div class="suspects-list" id="discussionSuspects">
+            <!-- Injected list of crew members -->
+          </div>
+          <div style="margin-top: auto; font-size: 0.75rem; color: var(--text-dim); line-height: 1.4;">
+            ⚠️ One of these operatives is an AI synthetic mimicking human speech patterns. Scrutinize grammar, speed, and word choices.
+          </div>
+        </aside>
+
+        <!-- Chat Stream -->
+        <div class="chat-center">
+          <div class="chat-topic-banner">
+            <div class="topic-info">
+              <h3 id="chatTopicTitle">Tactical Crisis</h3>
+              <p id="chatTopicPrompt">Loading situation report...</p>
+            </div>
+            <div class="brand-badge" id="chatRoundBadge">ROUND 1/2</div>
+          </div>
+
+          <div class="chat-stream" id="chatStream">
+            <!-- Live Chat Messages Injected Here -->
+          </div>
+
+          <div class="typing-bar" id="chatTypingIndicator"></div>
+
+          <form id="chatForm" class="chat-input-bar">
+            <input type="text" id="chatInput" class="chat-text-input" placeholder="Broadcast encrypted message to crew..." maxlength="240" autocomplete="off">
+            <button type="submit" class="cyber-btn" style="padding: 10px 18px;">
+              <span>📡</span> SEND
+            </button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==============================================
+         5. SCREEN: VOTING
+         ============================================== -->
+    <section id="panelVoting" class="phase-panel">
+      <div class="voting-container">
+        <h2 class="voting-title">VOTE TO QUARANTINE</h2>
+        <p class="voting-subtitle">Select the operative you suspect is the Synthetic Infiltrator. Votes are secret until the reveal.</p>
+
+        <div class="voting-grid" id="votingGrid">
+          <!-- Cards of suspects to vote for -->
+        </div>
+
+        <div id="votingStatusText" style="font-family: var(--font-mono); color: var(--accent-cyan); font-size: 0.95rem;">
+          Vote submitted. Waiting for all crew members to lock their choices...
+        </div>
+      </div>
+    </section>
+
+    <!-- ==============================================
+         6. SCREEN: REVEAL & POST-GAME
+         ============================================== -->
+    <section id="panelReveal" class="phase-panel">
+      <div class="reveal-container">
+        <div class="outcome-banner" id="revealOutcomeTitle">CALCULATING IDENTITY...</div>
+        <p id="revealOutcomeSubtitle" style="color: var(--text-muted); font-size: 1.05rem; margin-bottom: 10px;">
+          Decryption protocol in progress...
+        </p>
+
+        <!-- 3D Card Flip Stage -->
+        <div class="reveal-stage">
+          <div class="reveal-card-flip" id="revealCardFlip">
+            <div class="flip-face flip-front">
+              <div class="sonar-radar-icon">
+                <span style="font-size: 2rem;">⚡</span>
+              </div>
+              <div style="font-family: var(--font-display); font-size: 1.2rem; color: var(--accent-cyan);">DECRYPTING</div>
+              <p style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-dim); margin-top: 8px;">Unmasking synthetic neural node...</p>
+            </div>
+            <div class="flip-face flip-back">
+              <img id="revealAIImg" src="/assets/avatar_synth_reveal.jpg" alt="Revealed AI">
+              <h3 id="revealAIName">Synthetic Impostor</h3>
+              <span class="impostor-badge">SYNTHETIC INFILTRATOR</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Vote Breakdown -->
+        <div class="action-card" style="width: 100%; margin-bottom: 20px;">
+          <h3><span>📊</span> Vote Tally Breakdown</h3>
+          <div id="revealVoteTally" style="display: flex; flex-direction: column; gap: 8px;">
+            <!-- Injected vote counts -->
+          </div>
+        </div>
+
+        <!-- Suspicion Meter (P1 Requirement F9) -->
+        <div class="suspicion-card">
+          <h4><span>🧠</span> AI's Secret Tactical Log (Suspicion Meter)</h4>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 14px;">Here is how the AI analyzed each human crewmate during the game:</p>
+          <div class="meter-list" id="suspicionMeterList">
+            <!-- Meter rows injected here -->
+          </div>
+        </div>
+
+        <div id="revealHostControls" style="margin-top: 10px;">
+          <button id="btnPlayAgain" class="cyber-btn" style="min-width: 240px;">
+            <span>🔄</span> PLAY ANOTHER MISSION
+          </button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- External Socket.IO client & application scripts -->
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/sound.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>
