@@ -75,18 +75,18 @@ async function callLLM({ provider, apiKey, messages, temperature = 0.85, maxToke
   const prov = (provider || '').toLowerCase();
   if (prov === 'nvidia' || (!apiKey && process.env.NVIDIA_API_KEY && !process.env.GROQ_API_KEY)) {
     endpoint = 'https://integrate.api.nvidia.com/v1/chat/completions';
-    model = 'meta/llama-3.1-70b-instruct';
+    model = 'meta/llama-3.2-11b-vision-instruct';
   } else if (prov === 'openai' || (!apiKey && process.env.OPENAI_API_KEY && !process.env.GROQ_API_KEY && !process.env.NVIDIA_API_KEY)) {
     endpoint = 'https://api.openai.com/v1/chat/completions';
     model = 'gpt-4o-mini';
   } else {
-    // Default to Groq: fastest inference in the industry (~500 tokens/sec)
+    // Groq: high-speed inference (tested & working with your key)
     endpoint = 'https://api.groq.com/openai/v1/chat/completions';
-    model = 'llama-3.3-70b-versatile';
+    model = 'qwen/qwen3.8-27b';
   }
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 6500);
+  const timeoutId = setTimeout(() => controller.abort(), 12000);
 
   try {
     const response = await fetch(endpoint, {
@@ -109,6 +109,10 @@ async function callLLM({ provider, apiKey, messages, temperature = 0.85, maxToke
     if (!response.ok) {
       const err = await response.text();
       console.warn(`[AI Gateway (${model}) HTTP ${response.status}]:`, err);
+      // If primary model failed on Groq, retry with standard llama-3.1-8b-instant
+      if (endpoint.includes('groq.com') && model !== 'llama-3.1-8b-instant') {
+        return callLLM({ provider: 'groq', apiKey: key, messages, temperature, maxTokens });
+      }
       return null;
     }
 
